@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>三维标量场 f(x,y,z) 可调分辨率与点云密度实验台</title>
+<style>
+  :root{
+    --bg:#020617;
+    --panel:#0f172a;
+    --panel2:#111827;
+    --text:#e5e7eb;
+    --muted:#94a3b8;
+    --border:rgba(255,255,255,.12);
+    --blue:#60a5fa;
+    --green:#34d399;
+    --red:#fb7185;
+    --yellow:#fbbf24;
+    --purple:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    color:var(--text);
+    background:radial-gradient(circle at 15% 0%,#1e293b 0,#0b1020 45%,#020617 100%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;
+  }
+  header{
+    padding:22px 24px 14px;
+    border-bottom:1px solid var(--border);
+    background:rgba(2,6,23,.62);
+    backdrop-filter:blur(8px);
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  h1{font-size:24px;margin:0 0 6px}
+  .sub{font-size:14px;color:var(--muted);line-height:1.55}
+  .wrap{
+    max-width:1380px;
+    margin:0 auto;
+    padding:16px;
+    display:grid;
+    grid-template-columns:1fr 390px;
+    gap:16px;
+  }
+  .viewer,.side{
+    border:1px solid var(--border);
+    border-radius:18px;
+    background:rgba(15,23,42,.78);
+    box-shadow:0 20px 60px rgba(0,0,0,.28);
+  }
+  .toolbar{
+    padding:12px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    border-bottom:1px solid var(--border);
+  }
+  select,button,input[type=range]{
+    accent-color:var(--blue);
+  }
+  select,button{
+    color:var(--text);
+    background:#111827;
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:9px 10px;
+    font-size:14px;
+  }
+  button{cursor:pointer}
+  button:hover,select:hover{border-color:rgba(96,165,250,.65)}
+  label{
+    font-size:13px;
+    color:#cbd5e1;
+    display:flex;
+    gap:7px;
+    align-items:center;
+  }
+  .canvasBox{
+    position:relative;
+    width:100%;
+    aspect-ratio:1.35/1;
+    min-height:460px;
+  }
+  canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border-radius:0 0 18px 18px;
+    touch-action:none;
+    cursor:grab;
+  }
+  canvas:active{cursor:grabbing}
+  .hint{
+    position:absolute;
+    right:12px;
+    top:12px;
+    padding:8px 10px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:rgba(2,6,23,.62);
+    color:#cbd5e1;
+    font-size:12px;
+    pointer-events:none;
+    line-height:1.55;
+  }
+  .legend{
+    position:absolute;
+    left:12px;
+    bottom:12px;
+    padding:8px 10px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:rgba(2,6,23,.62);
+    color:#cbd5e1;
+    font-size:12px;
+    pointer-events:none;
+    line-height:1.55;
+  }
+  .barRow{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .bar{
+    width:150px;
+    height:12px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.22);
+    background:linear-gradient(to right,
+      rgb(30,64,175) 0%,
+      rgb(14,165,233) 25%,
+      rgb(52,211,153) 50%,
+      rgb(250,204,21) 75%,
+      rgb(244,63,94) 100%);
+  }
+  .side{
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .card{
+    background:rgba(2,6,23,.34);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:13px;
+  }
+  .card h2{font-size:17px;margin:0 0 8px}
+  .card h3{font-size:14px;margin:12px 0 6px;color:#bfdbfe}
+  .desc{font-size:13px;line-height:1.65;color:#cbd5e1}
+  .formula{
+    font-size:13px;
+    color:#e0f2fe;
+    line-height:1.65;
+    overflow-x:auto;
+  }
+  .sliders{
+    display:grid;
+    gap:10px;
+  }
+  .rangeLine{
+    display:grid;
+    grid-template-columns:34px 1fr 56px;
+    gap:8px;
+    align-items:center;
+    font-size:13px;
+    color:#cbd5e1;
+  }
+  .rangeLine .val{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:#e5e7eb;
+    text-align:right;
+  }
+  .kv{
+    display:grid;
+    grid-template-columns:92px 1fr;
+    gap:7px 10px;
+    line-height:1.45;
+    font-size:14px;
+  }
+  .k{color:var(--muted)}
+  .v{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.04);
+    margin:2px 3px 2px 0;
+    font-size:12px;
+  }
+  .small{font-size:12px;color:var(--muted);line-height:1.55}
+  .blue{color:#93c5fd}.green{color:#34d399}.yellow{color:#fbbf24}.red{color:#fb7185}.purple{color:#a78bfa}
+  @media(max-width:980px){
+    .wrap{grid-template-columns:1fr}
+    .canvasBox{min-height:380px}
+  }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']], processEscapes: true },
+  chtml: { scale: 1.0 },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre','code'] }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<header>
+  <h1>三维标量场 \(f(x,y,z)\) 可调分辨率与点云密度实验台</h1>
+  <div class="sub">这是 \(f:\mathbb R^3\to\mathbb R\) 的可视化：用三张正交切片看内部，用等值面点云看空间轮廓，用可调采样点读取 \(f\) 与 \(\nabla f\)。已加入低 / 中 / 高 / 极高四级分辨率和点云密度调节；暖色表示高值，冷色表示低值。</div>
+</header>
+
+<main class="wrap">
+  <section class="viewer">
+    <div class="toolbar">
+      <select id="fieldSelect"></select>
+      <label>分辨率 <select id="qualitySelect"><option value="low">低</option><option value="medium" selected>中</option><option value="high">高</option><option value="ultra">极高</option></select></label>
+      <label><input id="showX" type="checkbox" checked> x 切片</label>
+      <label><input id="showY" type="checkbox" checked> y 切片</label>
+      <label><input id="showZ" type="checkbox" checked> z 切片</label>
+      <label><input id="showIso" type="checkbox" checked> 等值面点云</label>
+      <label>点云密度 <input id="densitySlider" type="range" min="0.20" max="2.50" step="0.05" value="1.00"> <span id="densityVal">100%</span></label>
+      <label><input id="showGrad" type="checkbox" checked> ∇f 箭头</label>
+      <label>缩放 <input id="zoom" type="range" min="0.65" max="1.75" step="0.01" value="1"></label>
+      <button id="resetCam">重置视角</button>
+    </div>
+    <div class="canvasBox">
+      <canvas id="canvas"></canvas>
+      <div class="hint">拖拽旋转，滚轮缩放<br>调节右侧 x/y/z 改变采样点与切片位置</div>
+      <div class="legend">
+        色谱：冷色低值 → 暖色高值
+        <div class="barRow"><span>低</span><div class="bar"></div><span>高</span></div>
+        半透明平面：正交切片；发光点云：近似等值面
+      </div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h2 id="fieldName">场</h2>
+      <div id="tags"></div>
+      <p class="desc" id="desc"></p>
+      <h3>定义</h3>
+      <div class="formula" id="formula"></div>
+    </div>
+
+    <div class="card">
+      <h2>采样点与切片位置</h2>
+      <div class="sliders">
+        <div class="rangeLine"><span>x</span><input id="xSlider" type="range" min="-2" max="2" step="0.01" value="0"><span class="val" id="xVal">0.00</span></div>
+        <div class="rangeLine"><span>y</span><input id="ySlider" type="range" min="-2" max="2" step="0.01" value="0"><span class="val" id="yVal">0.00</span></div>
+        <div class="rangeLine"><span>z</span><input id="zSlider" type="range" min="-2" max="2" step="0.01" value="0"><span class="val" id="zVal">0.00</span></div>
+        <div class="rangeLine"><span>iso</span><input id="isoSlider" type="range" min="0" max="1" step="0.005" value="0.55"><span class="val" id="isoVal">0.55</span></div>
+      </div>
+      <p class="small">x/y/z 同时决定三张切片的位置与当前采样点 \(P\)。iso 是等值面阈值在当前场最小值和最大值之间的归一化位置。分辨率越高，切片越细、底层三维采样网格越密，但性能开销也越大；点云密度滑块只调显示层的等值面点云疏密，适合快速观察。</p>
+    </div>
+
+    <div class="card">
+      <h2>当前点 \(P\)</h2>
+      <div class="kv">
+        <div class="k">坐标</div><div class="v" id="pos">—</div>
+        <div class="k">f(P)</div><div class="v yellow" id="fVal">—</div>
+        <div class="k">∇f(P)</div><div class="v green" id="gradVal">—</div>
+        <div class="k">|∇f(P)|</div><div class="v green" id="gradMag">—</div>
+        <div class="k">场范围</div><div class="v" id="rangeVal">—</div>
+        <div class="k">iso 值</div><div class="v purple" id="isoActual">—</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>这几种呈现方式的含义</h2>
+      <p class="desc">
+        <span class="blue">切片</span>像 CT：固定一个坐标，看另外两个坐标组成的平面上 \(f\) 的分布。<br><br>
+        <span class="purple">等值面</span>像天气图里的等压面：显示满足 \(f(x,y,z)=c\) 的空间位置。<br><br>
+        <span class="green">梯度</span>是三维空间中 \(f\) 增长最快的方向；它不是画在曲面上的箭头，而是空间里的方向箭头。
+      </p>
+    </div>
+  </aside>
+</main>
+
+<script>
+'use strict';
+
+const TAU = Math.PI*2;
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const ui = {
+  fieldSelect: document.getElementById('fieldSelect'),
+  qualitySelect: document.getElementById('qualitySelect'),
+  showX: document.getElementById('showX'),
+  showY: document.getElementById('showY'),
+  showZ: document.getElementById('showZ'),
+  showIso: document.getElementById('showIso'),
+  densitySlider: document.getElementById('densitySlider'),
+  densityVal: document.getElementById('densityVal'),
+  showGrad: document.getElementById('showGrad'),
+  zoom: document.getElementById('zoom'),
+  resetCam: document.getElementById('resetCam'),
+  fieldName: document.getElementById('fieldName'),
+  tags: document.getElementById('tags'),
+  desc: document.getElementById('desc'),
+  formula: document.getElementById('formula'),
+  xSlider: document.getElementById('xSlider'),
+  ySlider: document.getElementById('ySlider'),
+  zSlider: document.getElementById('zSlider'),
+  isoSlider: document.getElementById('isoSlider'),
+  xVal: document.getElementById('xVal'),
+  yVal: document.getElementById('yVal'),
+  zVal: document.getElementById('zVal'),
+  isoVal: document.getElementById('isoVal'),
+  pos: document.getElementById('pos'),
+  fVal: document.getElementById('fVal'),
+  gradVal: document.getElementById('gradVal'),
+  gradMag: document.getElementById('gradMag'),
+  rangeVal: document.getElementById('rangeVal'),
+  isoActual: document.getElementById('isoActual')
+};
+
+function gauss3(x,y,z,cx,cy,cz,sx,sy,sz,a=1){
+  const X=(x-cx)/sx, Y=(y-cy)/sy, Z=(z-cz)/sz;
+  return a*Math.exp(-0.5*(X*X+Y*Y+Z*Z));
+}
+
+const fields = [
+  {
+    id:'blob',
+    name:'三维高斯团块',
+    tags:['最适合入门','球状高值区','等值面≈球面'],
+    desc:'中心附近是高值，远处趋近于低值。三张切片会看到圆形热斑，等值面点云会形成近似球壳。',
+    formula:'\\[ f(x,y,z)=\\exp\\left(-\\dfrac{x^2+y^2+z^2}{2\\sigma^2}\\right),\\quad \\sigma=0.85 \\]',
+    f:(x,y,z)=>Math.exp(-(x*x+y*y+z*z)/(2*0.85*0.85))
+  },
+  {
+    id:'twoBlobs',
+    name:'双团块：一正一负',
+    tags:['峰谷并存','正负区域','复杂等值面'],
+    desc:'一个正高值团块和一个负低值团块相互叠加。适合观察三维空间里的峰、谷、零值过渡面。',
+    formula:'\\[ f=G_1-0.85G_2,\\quad G_i\\text{ 为三维高斯团块} \\]',
+    f:(x,y,z)=>gauss3(x,y,z,-0.65,-0.35,0.25,0.65,0.75,0.70,1.0)-0.85*gauss3(x,y,z,0.75,0.55,-0.35,0.70,0.60,0.75,1.0)
+  },
+  {
+    id:'torus',
+    name:'环形团块：甜甜圈结构',
+    tags:['非球形结构','环状等值面','空间拓扑感'],
+    desc:'高值集中在一个环上。切片会显示两个斑点或环形截面，等值面会呈现甜甜圈状结构。',
+    formula:'\\[ f(x,y,z)=\\exp\\left(-\\dfrac{(\\sqrt{x^2+y^2}-1.05)^2+z^2}{0.20}\\right) \\]',
+    f:(x,y,z)=>{
+      const r=Math.hypot(x,y);
+      return Math.exp(-(((r-1.05)*(r-1.05)+z*z)/0.20));
+    }
+  },
+  {
+    id:'waves',
+    name:'三维波纹干涉场',
+    tags:['周期结构','多峰多谷','空间波纹'],
+    desc:'正弦波在三个方向上叠加，空间中有周期性的高值和低值区域。适合观察切片随位置移动如何改变图案。',
+    formula:'\\[ f(x,y,z)=\\sin(2x)+0.75\\cos(2y)+0.65\\sin(2z) \\]',
+    f:(x,y,z)=>Math.sin(2*x)+0.75*Math.cos(2*y)+0.65*Math.sin(2*z)
+  },
+  {
+    id:'saddle3',
+    name:'三维鞍形二次场',
+    tags:['鞍点','二次型','方向性明显'],
+    desc:'不同方向上有的升高、有的降低。适合理解三维标量场的局部形状不一定是峰或谷，也可能是鞍。',
+    formula:'\\[ f(x,y,z)=0.35x^2-0.28y^2+0.22z^2 \\]',
+    f:(x,y,z)=>0.35*x*x-0.28*y*y+0.22*z*z
+  },
+  {
+    id:'gyroid',
+    name:'Gyroid 型隐式场',
+    tags:['隐式曲面','复杂等值面','材料/几何常见'],
+    desc:'这是三周期极小曲面相关的经典隐式函数。调节 iso 接近中间值时，会出现漂亮的三维连通结构。',
+    formula:'\\[ f=\\sin x\\cos y+\\sin y\\cos z+\\sin z\\cos x \\]',
+    f:(x,y,z)=>Math.sin(1.55*x)*Math.cos(1.55*y)+Math.sin(1.55*y)*Math.cos(1.55*z)+Math.sin(1.55*z)*Math.cos(1.55*x)
+  }
+];
+
+for(const field of fields){
+  const opt=document.createElement('option');
+  opt.value=field.id;
+  opt.textContent=field.name;
+  ui.fieldSelect.appendChild(opt);
+}
+
+let W=1,H=1,DPR=1;
+let active=fields[0];
+const lim=2.0;
+let fMin=-1, fMax=1;
+let samplePoints=[];
+let camera={yaw:-0.72,pitch:0.62,zoom:1.0};
+let dragging=false,last={x:0,y:0};
+
+const qualityProfiles = {
+  // 档位含义：
+  // 低 = 原“标准”，中 = 原“高”，高 = 原“极高”，极高 = 新增更高档。
+  low:    { dprMax: 2.0, sampleN: 31, sliceRes: 38, isoBandRatio: 0.035, pointRadius: 1.15 },
+  medium: { dprMax: 2.5, sampleN: 45, sliceRes: 58, isoBandRatio: 0.026, pointRadius: 0.95 },
+  high:   { dprMax: 3.0, sampleN: 59, sliceRes: 78, isoBandRatio: 0.020, pointRadius: 0.78 },
+  ultra:  { dprMax: 3.2, sampleN: 73, sliceRes: 96, isoBandRatio: 0.016, pointRadius: 0.62 }
+};
+function quality(){
+  return qualityProfiles[ui.qualitySelect.value] || qualityProfiles.medium;
+}
+function densityFactor(){
+  return Math.max(0.20, Math.min(2.50, parseFloat(ui.densitySlider.value) || 1));
+}
+function updateDensityLabel(){
+  ui.densityVal.textContent = Math.round(densityFactor()*100) + '%';
+}
+function hash01(x,y,z){
+  // 稳定伪随机哈希，用来在低密度时固定抽样点云，避免每帧闪烁。
+  const n = Math.sin(x*12.9898 + y*78.233 + z*37.719) * 43758.5453123;
+  return n - Math.floor(n);
+}
+
+function resize(){
+  DPR=Math.max(1,Math.min(quality().dprMax,window.devicePixelRatio||1));
+  const r=canvas.getBoundingClientRect();
+  W=Math.floor(r.width*DPR);
+  H=Math.floor(r.height*DPR);
+  canvas.width=W; canvas.height=H;
+}
+window.addEventListener('resize',resize);
+
+function colorMap(t){
+  t=Math.max(0,Math.min(1,t));
+  const stops=[
+    [0.00,30,64,175],
+    [0.25,14,165,233],
+    [0.50,52,211,153],
+    [0.75,250,204,21],
+    [1.00,244,63,94]
+  ];
+  for(let i=0;i<stops.length-1;i++){
+    const a=stops[i], b=stops[i+1];
+    if(t>=a[0]&&t<=b[0]){
+      const u=(t-a[0])/(b[0]-a[0]);
+      const r=Math.round(a[1]*(1-u)+b[1]*u);
+      const g=Math.round(a[2]*(1-u)+b[2]*u);
+      const bl=Math.round(a[3]*(1-u)+b[3]*u);
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  return 'rgb(244,63,94)';
+}
+function norm(v){return (v-fMin)/(fMax-fMin||1);}
+function fmt(v){return Number.isFinite(v)?(Math.abs(v)<1e-10?'0.000':v.toFixed(3)):'NaN';}
+function val(x,y,z){return active.f(x,y,z);}
+
+function grad(x,y,z){
+  const h=0.003;
+  return [
+    (val(x+h,y,z)-val(x-h,y,z))/(2*h),
+    (val(x,y+h,z)-val(x,y-h,z))/(2*h),
+    (val(x,y,z+h)-val(x,y,z-h))/(2*h)
+  ];
+}
+
+function rotate3D(x,y,z){
+  const cy=Math.cos(camera.yaw), sy=Math.sin(camera.yaw);
+  const cp=Math.cos(camera.pitch), sp=Math.sin(camera.pitch);
+  const x1=cy*x+sy*y;
+  const y1=-sy*x+cy*y;
+  const z1=z;
+  const y2=cp*y1+sp*z1;
+  const z2=-sp*y1+cp*z1;
+  return [x1,y2,z2];
+}
+function project(x,y,z){
+  const [rx,ry,rz]=rotate3D(x,y,z);
+  const s=Math.min(W,H)*0.20*camera.zoom;
+  return {x:W/2+rx*s, y:H/2-ry*s+15*DPR, d:rz};
+}
+
+function line3(a,b,color,w=1){
+  ctx.strokeStyle=color; ctx.lineWidth=w*DPR;
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+}
+function drawAxesCube(){
+  const corners=[
+    [-lim,-lim,-lim],[lim,-lim,-lim],[lim,lim,-lim],[-lim,lim,-lim],
+    [-lim,-lim,lim],[lim,-lim,lim],[lim,lim,lim],[-lim,lim,lim]
+  ].map(p=>project(...p));
+  const edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  ctx.save();
+  for(const [a,b] of edges) line3(corners[a],corners[b],'rgba(255,255,255,.18)',1);
+  const o=project(0,0,0), x=project(1.35,0,0), y=project(0,1.35,0), z=project(0,0,1.35);
+  line3(o,x,'rgba(248,113,113,.85)',1.8);
+  line3(o,y,'rgba(52,211,153,.85)',1.8);
+  line3(o,z,'rgba(96,165,250,.85)',1.8);
+  ctx.font=`${12*DPR}px ui-monospace,monospace`;
+  ctx.fillStyle='rgba(248,113,113,.95)'; ctx.fillText('x',x.x+4*DPR,x.y);
+  ctx.fillStyle='rgba(52,211,153,.95)'; ctx.fillText('y',y.x+4*DPR,y.y);
+  ctx.fillStyle='rgba(96,165,250,.95)'; ctx.fillText('z',z.x+4*DPR,z.y);
+  ctx.restore();
+}
+
+function buildRangeAndSamples(){
+  let min=Infinity,max=-Infinity;
+  samplePoints=[];
+  const N=quality().sampleN;
+  for(let i=0;i<N;i++){
+    const x=-lim+2*lim*i/(N-1);
+    for(let j=0;j<N;j++){
+      const y=-lim+2*lim*j/(N-1);
+      for(let k=0;k<N;k++){
+        const z=-lim+2*lim*k/(N-1);
+        const f=val(x,y,z);
+        if(f<min)min=f; if(f>max)max=f;
+        samplePoints.push({x,y,z,f});
+      }
+    }
+  }
+  fMin=min; fMax=max;
+}
+
+function makeSlice(axis,pos,res=quality().sliceRes){
+  let cells=[];
+  for(let i=0;i<res-1;i++){
+    for(let j=0;j<res-1;j++){
+      const a=-lim+2*lim*i/(res-1), b=-lim+2*lim*(i+1)/(res-1);
+      const c=-lim+2*lim*j/(res-1), d=-lim+2*lim*(j+1)/(res-1);
+      let pts, mx,my,mz;
+      if(axis==='x'){
+        pts=[[pos,a,c],[pos,b,c],[pos,b,d],[pos,a,d]];
+        mx=pos; my=(a+b)/2; mz=(c+d)/2;
+      }else if(axis==='y'){
+        pts=[[a,pos,c],[b,pos,c],[b,pos,d],[a,pos,d]];
+        mx=(a+b)/2; my=pos; mz=(c+d)/2;
+      }else{
+        pts=[[a,c,pos],[b,c,pos],[b,d,pos],[a,d,pos]];
+        mx=(a+b)/2; my=(c+d)/2; mz=pos;
+      }
+      const f=val(mx,my,mz);
+      const ps=pts.map(p=>project(...p));
+      cells.push({pts:ps, f, depth:ps.reduce((s,p)=>s+p.d,0)/4, axis});
+    }
+  }
+  return cells;
+}
+
+function drawSlices(){
+  let cells=[];
+  const x=parseFloat(ui.xSlider.value), y=parseFloat(ui.ySlider.value), z=parseFloat(ui.zSlider.value);
+  if(ui.showX.checked) cells.push(...makeSlice('x',x));
+  if(ui.showY.checked) cells.push(...makeSlice('y',y));
+  if(ui.showZ.checked) cells.push(...makeSlice('z',z));
+  cells.sort((a,b)=>a.depth-b.depth);
+  ctx.save();
+  for(const c of cells){
+    ctx.globalAlpha=0.58;
+    ctx.fillStyle=colorMap(norm(c.f));
+    ctx.beginPath();
+    ctx.moveTo(c.pts[0].x,c.pts[0].y);
+    for(let i=1;i<4;i++)ctx.lineTo(c.pts[i].x,c.pts[i].y);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function drawIsoCloud(){
+  if(!ui.showIso.checked) return;
+  const t=parseFloat(ui.isoSlider.value);
+  const density=densityFactor();
+  const level=fMin+t*(fMax-fMin);
+
+  // density < 1：固定抽样，减少点数；
+  // density > 1：适当加厚阈值带，同时缩小点半径，让等值面更连续。
+  const band=(fMax-fMin)*quality().isoBandRatio*Math.max(1, Math.sqrt(density));
+  const keepRatio=Math.min(1, density);
+
+  let pts=[];
+  for(const p of samplePoints){
+    if(keepRatio<1 && hash01(p.x,p.y,p.z)>keepRatio) continue;
+    const diff=Math.abs(p.f-level);
+    if(diff<band){
+      const q=project(p.x,p.y,p.z);
+      pts.push({q, f:p.f, alpha:1-diff/band});
+    }
+  }
+  pts.sort((a,b)=>a.q.d-b.q.d);
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  const radiusScale=1/Math.sqrt(Math.max(1,density));
+  const alphaScale=1/Math.sqrt(Math.max(1,density)*0.75);
+  for(const p of pts){
+    const r=(quality().pointRadius+0.95*p.alpha)*radiusScale*DPR;
+    const a=Math.min(0.42, (0.12+0.28*p.alpha)*alphaScale);
+    ctx.fillStyle=`rgba(167,139,250,${a})`;
+    ctx.beginPath();
+    ctx.arc(p.q.x,p.q.y,r,0,TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawArrow3D(x,y,z,u,v,w,color='rgba(52,211,153,.95)',scale=1){
+  const m=Math.hypot(u,v,w);
+  if(m<1e-8)return;
+  const len=0.62*scale*Math.tanh(0.9*m);
+  const x2=x+u/m*len, y2=y+v/m*len, z2=z+w/m*len;
+  const a=project(x,y,z), b=project(x2,y2,z2);
+  ctx.save();
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2*DPR;
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+  const ang=Math.atan2(b.y-a.y,b.x-a.x);
+  const ah=7*DPR;
+  ctx.beginPath();
+  ctx.moveTo(b.x,b.y);
+  ctx.lineTo(b.x-ah*Math.cos(ang-Math.PI/6), b.y-ah*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(b.x-ah*Math.cos(ang+Math.PI/6), b.y-ah*Math.sin(ang+Math.PI/6));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawSelectedPoint(){
+  const x=parseFloat(ui.xSlider.value), y=parseFloat(ui.ySlider.value), z=parseFloat(ui.zSlider.value);
+  const p=project(x,y,z);
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,.96)';
+  ctx.fillStyle='rgba(2,6,23,.85)';
+  ctx.lineWidth=2*DPR;
+  ctx.beginPath(); ctx.arc(p.x,p.y,6.5*DPR,0,TAU); ctx.stroke(); ctx.fill();
+  ctx.font=`${13*DPR}px ui-monospace,monospace`;
+  ctx.fillStyle='rgba(255,255,255,.96)'; ctx.fillText('P',p.x+9*DPR,p.y-8*DPR);
+  ctx.restore();
+  if(ui.showGrad.checked){
+    const g=grad(x,y,z);
+    drawArrow3D(x,y,z,g[0],g[1],g[2],'rgba(52,211,153,.96)',1.25);
+  }
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#020617';
+  ctx.fillRect(0,0,W,H);
+  drawAxesCube();
+  drawSlices();
+  drawIsoCloud();
+  drawSelectedPoint();
+  requestAnimationFrame(render);
+}
+
+function updatePanel(){
+  const x=parseFloat(ui.xSlider.value), y=parseFloat(ui.ySlider.value), z=parseFloat(ui.zSlider.value);
+  const f=val(x,y,z), g=grad(x,y,z);
+  const gm=Math.hypot(g[0],g[1],g[2]);
+  const iso=parseFloat(ui.isoSlider.value);
+  const isoActual=fMin+iso*(fMax-fMin);
+  ui.xVal.textContent=x.toFixed(2);
+  ui.yVal.textContent=y.toFixed(2);
+  ui.zVal.textContent=z.toFixed(2);
+  ui.isoVal.textContent=iso.toFixed(3);
+  updateDensityLabel();
+  ui.pos.textContent=`(${fmt(x)}, ${fmt(y)}, ${fmt(z)})`;
+  ui.fVal.textContent=fmt(f);
+  ui.gradVal.textContent=`(${fmt(g[0])}, ${fmt(g[1])}, ${fmt(g[2])})`;
+  ui.gradMag.textContent=fmt(gm);
+  ui.rangeVal.textContent=`[${fmt(fMin)}, ${fmt(fMax)}]`;
+  ui.isoActual.textContent=fmt(isoActual);
+}
+
+function updateField(){
+  active=fields.find(f=>f.id===ui.fieldSelect.value)||fields[0];
+  buildRangeAndSamples();
+  ui.fieldName.textContent=active.name;
+  ui.tags.innerHTML=active.tags.map(t=>`<span class="pill">${t}</span>`).join('');
+  ui.desc.textContent=active.desc;
+  ui.formula.innerHTML=active.formula;
+  updatePanel();
+  if(window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([ui.formula]);
+}
+
+function resetCamera(){
+  camera.yaw=-0.72;
+  camera.pitch=0.62;
+  camera.zoom=parseFloat(ui.zoom.value);
+}
+
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  dragging=true; last.x=e.clientX; last.y=e.clientY;
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging)return;
+  const dx=e.clientX-last.x, dy=e.clientY-last.y;
+  last.x=e.clientX; last.y=e.clientY;
+  camera.yaw -= dx*0.008;
+  camera.pitch -= dy*0.006;
+  camera.pitch=Math.max(-1.15,Math.min(1.25,camera.pitch));
+});
+canvas.addEventListener('pointerup',()=>dragging=false);
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const factor=Math.exp(-e.deltaY*0.001);
+  camera.zoom=Math.max(0.62,Math.min(1.85,camera.zoom*factor));
+  ui.zoom.value=camera.zoom.toFixed(2);
+},{passive:false});
+
+ui.fieldSelect.addEventListener('change',updateField);
+ui.qualitySelect.addEventListener('change',()=>{ resize(); buildRangeAndSamples(); updatePanel(); });
+ui.densitySlider.addEventListener('input',()=>{ updateDensityLabel(); });
+for(const el of [ui.xSlider,ui.ySlider,ui.zSlider,ui.isoSlider]){
+  el.addEventListener('input',updatePanel);
+}
+for(const el of [ui.showX,ui.showY,ui.showZ,ui.showIso,ui.showGrad]){
+  el.addEventListener('change',()=>{});
+}
+ui.zoom.addEventListener('input',()=>{camera.zoom=parseFloat(ui.zoom.value);});
+ui.resetCam.addEventListener('click',resetCamera);
+
+ui.fieldSelect.value='blob';
+resize();
+resetCamera();
+updateField();
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
