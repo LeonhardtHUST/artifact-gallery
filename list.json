@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "title": {
+      "zh": "梯度 / 散度 / 旋度交互可视化实验台 v7",
+      "en": "Gradient / Divergence / Curl Interactive Lab v7"
+    },
+    "description": {
+      "zh": "用颜色场、等势线、动态粒子和矢量箭头观察标量场与向量场，并点击采样点读取梯度、散度和旋度。",
+      "en": "Explore scalar and vector fields with contours, particles, arrows, and point sampling for gradient, divergence, and curl."
+    },
+    "imageUrl": "images/梯度_散度_旋度交互可视化实验台_v7.png",
+    "url": "pages/vector_calculus_interactive_v7_drag_fixed.html",
+    "generatedAt": "2026-07-04"
+  },
+  {
+    "id": 2,
+    "title": {
+      "zh": "三维标量场 f(x,y,z) 可调分辨率与点云密度实验台",
+      "en": "3D Scalar Field Resolution and Point Cloud Density Lab"
+    },
+    "description": {
+      "zh": "通过正交切片、等值面点云和梯度箭头查看三维标量场，并调节分辨率、密度与采样点位置。",
+      "en": "Visualize a 3D scalar field through orthogonal slices, isosurface point clouds, gradient arrows, and adjustable sampling controls."
+    },
+    "imageUrl": "images/三维标量场_f_x_y_z_可调分辨率与点云密度实验台.png",
+    "url": "pages/scalar_field_3d_visualizer_density_v2.html",
+    "generatedAt": "2026-07-04"
+  }
+]
