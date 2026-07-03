@@ -1,0 +1,1225 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>梯度 / 散度 / 旋度交互可视化实验台 v7</title>
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#121a2f;
+    --panel2:#0f172a;
+    --text:#e5e7eb;
+    --muted:#9ca3af;
+    --accent:#60a5fa;
+    --green:#34d399;
+    --yellow:#fbbf24;
+    --red:#fb7185;
+    --purple:#a78bfa;
+    --border:rgba(255,255,255,.12);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:radial-gradient(circle at top left,#1e293b 0,#0b1020 45%,#020617 100%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","Microsoft YaHei",Arial,sans-serif;
+  }
+  header{
+    padding:22px 24px 14px;
+    border-bottom:1px solid var(--border);
+    background:rgba(2,6,23,.55);
+    backdrop-filter: blur(8px);
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  h1{margin:0 0 6px;font-size:24px;letter-spacing:.02em}
+  .sub{color:var(--muted);font-size:14px;line-height:1.5}
+  .wrap{
+    display:grid;
+    grid-template-columns: 1fr 370px;
+    gap:16px;
+    padding:16px;
+    max-width:1320px;
+    margin:0 auto;
+  }
+  .canvasPanel,.side{
+    background:rgba(15,23,42,.78);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.25);
+  }
+  .toolbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    padding:12px;
+    border-bottom:1px solid var(--border);
+  }
+  select,button,input[type=range]{
+    accent-color:var(--accent);
+  }
+  select,button{
+    background:#111827;
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:9px 10px;
+    font-size:14px;
+  }
+  button{cursor:pointer}
+  button:hover,select:hover{border-color:rgba(96,165,250,.65)}
+  .seg{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+    background:#0b1220;
+  }
+  .seg button{
+    border:0;
+    border-radius:0;
+    background:transparent;
+    padding:9px 12px;
+  }
+  .seg button.active{
+    background:rgba(96,165,250,.22);
+    color:#bfdbfe;
+  }
+  label{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+  .canvasBox{
+    position:relative;
+    width:100%;
+    aspect-ratio: 1.32 / 1;
+    min-height:430px;
+  }
+  canvas{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border-radius:0 0 18px 18px;
+    cursor:crosshair;
+    touch-action:none;
+  }
+  .legend{
+    position:absolute;
+    left:12px;
+    bottom:12px;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(2,6,23,.62);
+    font-size:12px;
+    color:#d1d5db;
+    line-height:1.6;
+    pointer-events:none;
+  }
+  .viewHint{
+    position:absolute;
+    right:12px;
+    top:12px;
+    padding:7px 10px;
+    border:1px solid var(--border);
+    border-radius:12px;
+    background:rgba(2,6,23,.58);
+    color:#cbd5e1;
+    font-size:12px;
+    pointer-events:none;
+  }
+  .side{
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .card{
+    background:rgba(2,6,23,.35);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:13px;
+  }
+  .card h2{
+    font-size:17px;
+    margin:0 0 8px;
+  }
+  .card h3{
+    font-size:14px;
+    margin:12px 0 6px;
+    color:#bfdbfe;
+  }
+  .kv{
+    display:grid;
+    grid-template-columns:98px 1fr;
+    gap:7px 10px;
+    font-size:14px;
+    line-height:1.45;
+  }
+  .k{color:var(--muted)}
+  .v{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .hint{
+    color:#cbd5e1;
+    font-size:13px;
+    line-height:1.65;
+  }
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.04);
+    margin:2px 3px 2px 0;
+    font-size:12px;
+  }
+  .green{color:var(--green)}
+  .yellow{color:var(--yellow)}
+  .red{color:var(--red)}
+  .purple{color:var(--purple)}
+  .blue{color:#93c5fd}
+  .formula{
+    color:#e0f2fe;
+    font-size:13px;
+    line-height:1.65;
+    overflow-x:auto;
+  }
+  .formula .MathJax{
+    outline:0;
+  }
+  .colorbar{
+    display:grid;
+    grid-template-columns: 16px auto;
+    gap:8px;
+    align-items:stretch;
+    margin-top:7px;
+  }
+  .bar{
+    width:16px;
+    height:82px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.22);
+    background:linear-gradient(to top,
+      rgb(30,64,175) 0%,
+      rgb(14,165,233) 25%,
+      rgb(52,211,153) 50%,
+      rgb(250,204,21) 75%,
+      rgb(244,63,94) 100%);
+  }
+  .barLabels{
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    color:#d1d5db;
+    font-size:12px;
+    line-height:1.25;
+  }
+  .small{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.55;
+  }
+  @media (max-width: 960px){
+    .wrap{grid-template-columns:1fr}
+    .canvasBox{min-height:370px}
+    .side{order:2}
+  }
+</style>
+
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)']],
+      displayMath: [['\\[', '\\]']],
+      processEscapes: true
+    },
+    chtml: {
+      scale: 1.0
+    },
+    options: {
+      skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+    }
+  };
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+
+</head>
+<body>
+<header>
+  <h1>梯度 / 散度 / 旋度交互可视化实验台</h1>
+  <div class="sub">选一个场，观察颜色、等势线、动态粒子和箭头。点击画布任意点，读取该点的 ∇f、div F、curl F。3D 视图可拖拽旋转；暖色始终表示较高的 f，冷色始终表示较低的 f。</div>
+</header>
+
+<main class="wrap">
+  <section class="canvasPanel">
+    <div class="toolbar">
+      <select id="fieldSelect" title="选择示例场"></select>
+      <div class="seg" title="切换视图，保留当前点">
+        <button id="view2d" class="active">2D 气象图</button>
+        <button id="view3d">3D 曲面</button>
+      </div>
+      <label><input id="showScalar" type="checkbox" checked> 颜色场 f</label>
+      <label><input id="showContours" type="checkbox" checked> 等势线</label>
+      <label><input id="showVectors" type="checkbox" checked> 矢量箭头 F</label>
+      <label><input id="showParticles" type="checkbox" checked> 动态粒子</label>
+      <label>速度 <input id="speed" type="range" min="0" max="3" step="0.05" value="1"></label>
+      <button id="resetBtn">重置粒子</button>
+      <button id="resetCamBtn">重置视角</button>
+    </div>
+    <div class="canvasBox">
+      <canvas id="canvas"></canvas>
+      <div class="viewHint" id="viewHint">2D：点击取点；暖色高、冷色低</div>
+      <div class="legend">
+        颜色：标量场 f(x,y)，白线：等势线<br>
+        暖色端 = 高位 / 高值，冷色端 = 低位 / 低值<br>
+        箭头/粒子：矢量场 F(x,y)<br>
+        点击一点 P：读取局部梯度、散度、旋度
+        <div class="colorbar">
+          <div class="bar"></div>
+          <div class="barLabels">
+            <div>高值 / 暖色</div>
+            <div>中间值</div>
+            <div>低值 / 冷色</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h2 id="fieldName">场</h2>
+      <div id="fieldTags"></div>
+      <p class="hint" id="fieldDesc"></p>
+      <h3>定义</h3>
+      <div class="formula" id="fieldFormula"></div>
+    </div>
+
+    <div class="card">
+      <h2>当前点 P</h2>
+      <div class="kv">
+        <div class="k">坐标</div><div class="v" id="pos">尚未点击</div>
+        <div class="k">f(P)</div><div class="v" id="scalarVal">—</div>
+        <div class="k">∇f(P)</div><div class="v green" id="gradVal">—</div>
+        <div class="k">F(P)</div><div class="v blue" id="vecVal">—</div>
+        <div class="k">div F(P)</div><div class="v yellow" id="divVal">—</div>
+        <div class="k">curl F(P)</div><div class="v purple" id="curlVal">—</div>
+      </div>
+      <p class="small">二维中 curl F 显示的是 z 分量：∂Q/∂x − ∂P/∂y。</p>
+    </div>
+
+    <div class="card">
+      <h2>怎么读图</h2>
+      <p class="hint">
+        <span class="green">梯度</span>看颜色场/等势线：暖色端表示 f 较高，冷色端表示 f 较低；箭头指向 f 增长最快方向，等势线越密，梯度通常越大。<br><br>
+        <span class="yellow">散度</span>看一个极小盒子附近的净流出：箭头像源头向外喷，div F &gt; 0；像汇向内吸，div F &lt; 0。<br><br>
+        <span class="purple">旋度</span>看一个极小叶轮会不会转：二维图里 curl F 是垂直纸面的 z 分量，正值通常表示逆时针局部旋转趋势。
+      </p>
+    </div>
+  </aside>
+</main>
+
+<script>
+'use strict';
+
+const TAU = Math.PI * 2;
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const ui = {
+  fieldSelect: document.getElementById('fieldSelect'),
+  view2d: document.getElementById('view2d'),
+  view3d: document.getElementById('view3d'),
+  showScalar: document.getElementById('showScalar'),
+  showContours: document.getElementById('showContours'),
+  showVectors: document.getElementById('showVectors'),
+  showParticles: document.getElementById('showParticles'),
+  speed: document.getElementById('speed'),
+  resetBtn: document.getElementById('resetBtn'),
+  resetCamBtn: document.getElementById('resetCamBtn'),
+  viewHint: document.getElementById('viewHint'),
+  fieldName: document.getElementById('fieldName'),
+  fieldTags: document.getElementById('fieldTags'),
+  fieldDesc: document.getElementById('fieldDesc'),
+  fieldFormula: document.getElementById('fieldFormula'),
+  pos: document.getElementById('pos'),
+  scalarVal: document.getElementById('scalarVal'),
+  gradVal: document.getElementById('gradVal'),
+  vecVal: document.getElementById('vecVal'),
+  divVal: document.getElementById('divVal'),
+  curlVal: document.getElementById('curlVal')
+};
+
+function gauss(x,y,cx,cy,sx,sy,a=1){
+  const X=(x-cx)/sx, Y=(y-cy)/sy;
+  return a*Math.exp(-0.5*(X*X+Y*Y));
+}
+function dgauss_dx(x,y,cx,cy,sx,sy,a=1){
+  return gauss(x,y,cx,cy,sx,sy,a) * (-(x-cx)/(sx*sx));
+}
+function dgauss_dy(x,y,cx,cy,sx,sy,a=1){
+  return gauss(x,y,cx,cy,sx,sy,a) * (-(y-cy)/(sy*sy));
+}
+
+const fields = [
+  {
+    id:'hill',
+    name:'峰顶标量场 + 梯度流',
+    tags:['适合看梯度','等势线密度','无旋梯度场'],
+    desc:'颜色是一座高斯山：暖色是峰顶高值，冷色是远处低值。矢量场取 F = ∇f，所以箭头沿着“最陡上坡方向”。你会看到箭头垂直穿过等势线。',
+    formula:'\\[ f(x,y)=\\exp\\left[-\\dfrac12\\left((x-0.4)^2+\\dfrac{(y+0.2)^2}{0.8^2}\\right)\\right] \\]\\[ \\mathbf F=\\nabla f \\]',
+    scalar:(x,y)=>gauss(x,y,0.4,-0.2,1.0,0.8,1.0),
+    grad:(x,y)=>[dgauss_dx(x,y,0.4,-0.2,1.0,0.8,1.0), dgauss_dy(x,y,0.4,-0.2,1.0,0.8,1.0)],
+    vector:function(x,y){ return this.grad(x,y); }
+  },
+  {
+    id:'saddle',
+    name:'马鞍面标量场',
+    tags:['适合看梯度','峰谷方向相反','鞍点'],
+    desc:'颜色场 f = x² - y²。原点附近既不是峰也不是谷，是鞍点。点击不同象限，看梯度方向如何改变。',
+    formula:'\\[ f(x,y)=0.20(x^2-y^2) \\]\\[ \\mathbf F=\\nabla f=(0.40x,-0.40y) \\]',
+    scalar:(x,y)=>0.20*(x*x-y*y),
+    grad:(x,y)=>[0.40*x,-0.40*y],
+    vector:function(x,y){ return this.grad(x,y); }
+  },
+  {
+    id:'source',
+    name:'源场：向外发散',
+    tags:['适合看散度','源','div F > 0'],
+    desc:'箭头从中心向外。把一个小盒子放在中心附近，流出的量大于流入，散度为正。',
+    formula:'\\[ f(x,y)=0.12(x^2+y^2) \\]\\[ \\mathbf F=(0.75x,0.75y) \\]\\[ \\operatorname{div}\\mathbf F=1.5,\\qquad \\operatorname{curl}\\mathbf F=0 \\]',
+    scalar:(x,y)=>0.12*(x*x+y*y),
+    grad:(x,y)=>[0.24*x,0.24*y],
+    vector:(x,y)=>[0.75*x,0.75*y],
+    div:(x,y)=>1.5,
+    curl:(x,y)=>0
+  },
+  {
+    id:'sink',
+    name:'汇场：向内汇聚',
+    tags:['适合看散度','汇','div F < 0'],
+    desc:'箭头指向中心。小盒子附近流入多于流出，散度为负。',
+    formula:'\\[ f(x,y)=-0.12(x^2+y^2) \\]\\[ \\mathbf F=(-0.75x,-0.75y) \\]\\[ \\operatorname{div}\\mathbf F=-1.5,\\qquad \\operatorname{curl}\\mathbf F=0 \\]',
+    scalar:(x,y)=>-0.12*(x*x+y*y),
+    grad:(x,y)=>[-0.24*x,-0.24*y],
+    vector:(x,y)=>[-0.75*x,-0.75*y],
+    div:(x,y)=>-1.5,
+    curl:(x,y)=>0
+  },
+  {
+    id:'vortex',
+    name:'纯漩涡：局部旋转',
+    tags:['适合看旋度','漩涡','curl F > 0'],
+    desc:'箭头绕中心旋转。二维中 curl F 是垂直纸面的 z 分量；这里为正，表示逆时针旋转趋势。',
+    formula:'\\[ f(x,y)=\\exp\\left(-\\dfrac{x^2+y^2}{3.92}\\right) \\]\\[ \\mathbf F=(-0.75y,0.75x) \\]\\[ \\operatorname{div}\\mathbf F=0,\\qquad \\operatorname{curl}\\mathbf F=1.5 \\]',
+    scalar:(x,y)=>gauss(x,y,0,0,1.4,1.4,1),
+    grad:(x,y)=>[dgauss_dx(x,y,0,0,1.4,1.4,1), dgauss_dy(x,y,0,0,1.4,1.4,1)],
+    vector:(x,y)=>[-0.75*y,0.75*x],
+    div:(x,y)=>0,
+    curl:(x,y)=>1.5
+  },
+  {
+    id:'spiral',
+    name:'螺旋源：又发散又旋转',
+    tags:['散度 + 旋度','螺旋气旋感','源涡叠加'],
+    desc:'这是源场和漩涡场的叠加。粒子一边向外跑，一边绕圈，因而 div F 与 curl F 都不为零。',
+    formula:'\\[ f(x,y)=0.08(x^2+y^2)+0.35\\operatorname{atan2}(y,x) \\]\\[ \\mathbf F=(0.45x-0.8y,\\,0.8x+0.45y) \\]\\[ \\operatorname{div}\\mathbf F=0.9,\\qquad \\operatorname{curl}\\mathbf F=1.6 \\]',
+    scalar:(x,y)=>0.08*(x*x+y*y)+0.35*Math.atan2(y,x),
+    grad:(x,y)=>{
+      const r2=x*x+y*y+0.08;
+      return [0.16*x-0.35*y/r2, 0.16*y+0.35*x/r2];
+    },
+    vector:(x,y)=>[0.45*x-0.8*y,0.8*x+0.45*y],
+    div:(x,y)=>0.9,
+    curl:(x,y)=>1.6
+  },
+  {
+    id:'shear',
+    name:'剪切流：看似平移也有旋度',
+    tags:['适合区分旋度','剪切','局部叶轮'],
+    desc:'F = (y, 0)。流速随 y 改变，上层和下层速度不同，小叶轮会被剪切带动旋转。',
+    formula:'\\[ f(x,y)=0.35y \\]\\[ \\mathbf F=(0.9y,0) \\]\\[ \\operatorname{div}\\mathbf F=0,\\qquad \\operatorname{curl}\\mathbf F=-0.9 \\]',
+    scalar:(x,y)=>0.35*y,
+    grad:(x,y)=>[0,0.35],
+    vector:(x,y)=>[0.9*y,0],
+    div:(x,y)=>0,
+    curl:(x,y)=>-0.9
+  },
+  {
+    id:'dipole',
+    name:'双峰双谷势场',
+    tags:['适合看梯度','峰谷','复杂等势线'],
+    desc:'两个高峰和一个低谷叠加。梯度总是垂直等势线，但方向会被多个峰谷共同影响。',
+    formula:'\\[ f=G_1+0.8G_2-1.1G_3 \\]\\[ G_1=e^{-\\frac12\\left(\\frac{(x+1)^2}{0.7^2}+\\frac{(y-0.7)^2}{0.7^2}\\right)} \\]\\[ G_2=e^{-\\frac12\\left(\\frac{(x-1.2)^2}{0.8^2}+\\frac{(y+0.2)^2}{0.6^2}\\right)} \\]\\[ G_3=e^{-\\frac12\\left(\\frac{(x+0.2)^2}{0.7^2}+\\frac{(y+1)^2}{0.5^2}\\right)} \\]\\[ \\mathbf F=\\nabla f \\]',
+    scalar:(x,y)=>gauss(x,y,-1.0,0.7,0.7,0.7,1)+gauss(x,y,1.2,-0.2,0.8,0.6,0.8)-gauss(x,y,-0.2,-1.0,0.7,0.5,1.1),
+    grad:(x,y)=>[
+      dgauss_dx(x,y,-1.0,0.7,0.7,0.7,1)+dgauss_dx(x,y,1.2,-0.2,0.8,0.6,0.8)-dgauss_dx(x,y,-0.2,-1.0,0.7,0.5,1.1),
+      dgauss_dy(x,y,-1.0,0.7,0.7,0.7,1)+dgauss_dy(x,y,1.2,-0.2,0.8,0.6,0.8)-dgauss_dy(x,y,-0.2,-1.0,0.7,0.5,1.1)
+    ],
+    vector:function(x,y){ return this.grad(x,y); }
+  },
+  {
+    id:'gaussianSource',
+    name:'局部源场：散度随位置改变',
+    tags:['非均匀散度','中心源 / 外圈汇','div F 非常数'],
+    desc:'F = 1.2e^{-r²}(x,y)。中心附近像源，远离中心后因为场强快速衰减，局部净流出会变弱，甚至转为净流入。点击不同半径比较 div F。',
+    formula:'\\[ r^2=x^2+y^2 \\]\\[ f=\\exp(-r^2) \\]\\[ \\mathbf F=1.2e^{-r^2}(x,y) \\]\\[ \\operatorname{div}\\mathbf F=2.4e^{-r^2}(1-r^2),\\qquad \\operatorname{curl}\\mathbf F=0 \\]',
+    scalar:(x,y)=>Math.exp(-(x*x+y*y)),
+    grad:(x,y)=>{
+      const s=Math.exp(-(x*x+y*y));
+      return [-2*x*s,-2*y*s];
+    },
+    vector:(x,y)=>{
+      const s=Math.exp(-(x*x+y*y));
+      return [1.2*s*x,1.2*s*y];
+    },
+    div:(x,y)=>{
+      const r2=x*x+y*y, s=Math.exp(-r2);
+      return 2.4*s*(1-r2);
+    },
+    curl:(x,y)=>0
+  },
+  {
+    id:'gaussianVortex',
+    name:'局部漩涡：旋度随位置改变',
+    tags:['非均匀旋度','中心涡旋','curl F 非常数'],
+    desc:'F = 1.1e^{-r²}(-y,x)。中心附近旋转趋势强，远处旋转强度衰减，并且 curl F 会随半径改变符号。点击不同半径比较 curl F。',
+    formula:'\\[ r^2=x^2+y^2 \\]\\[ f=\\exp(-r^2) \\]\\[ \\mathbf F=1.1e^{-r^2}(-y,x) \\]\\[ \\operatorname{div}\\mathbf F=0,\\qquad \\operatorname{curl}\\mathbf F=2.2e^{-r^2}(1-r^2) \\]',
+    scalar:(x,y)=>Math.exp(-(x*x+y*y)),
+    grad:(x,y)=>{
+      const s=Math.exp(-(x*x+y*y));
+      return [-2*x*s,-2*y*s];
+    },
+    vector:(x,y)=>{
+      const s=Math.exp(-(x*x+y*y));
+      return [-1.1*s*y,1.1*s*x];
+    },
+    div:(x,y)=>0,
+    curl:(x,y)=>{
+      const r2=x*x+y*y, s=Math.exp(-r2);
+      return 2.2*s*(1-r2);
+    }
+  },
+  {
+    id:'nonlinearMix',
+    name:'非线性混合场：散度和旋度都变',
+    tags:['div F 非常数','curl F 非常数','非线性场'],
+    desc:'这个场不是简单源、汇或纯涡旋。它的局部净流出和局部旋转趋势都会随位置改变，适合验证“散度/旋度一般不是常数”。',
+    formula:'\\[ f(x,y)=0.6\\sin x\\cos y \\]\\[ \\mathbf F=(\\sin y+0.25x^2,\\,\\cos x-0.20y^2) \\]\\[ \\operatorname{div}\\mathbf F=0.5x-0.4y \\]\\[ \\operatorname{curl}\\mathbf F=-\\sin x-\\cos y \\]',
+    scalar:(x,y)=>0.6*Math.sin(x)*Math.cos(y),
+    grad:(x,y)=>[0.6*Math.cos(x)*Math.cos(y), -0.6*Math.sin(x)*Math.sin(y)],
+    vector:(x,y)=>[Math.sin(y)+0.25*x*x, Math.cos(x)-0.20*y*y],
+    div:(x,y)=>0.5*x-0.4*y,
+    curl:(x,y)=>-Math.sin(x)-Math.cos(y)
+  }
+];
+
+for (const f of fields) {
+  const opt = document.createElement('option');
+  opt.value = f.id;
+  opt.textContent = f.name;
+  ui.fieldSelect.appendChild(opt);
+}
+
+let W=1,H=1,DPR=1;
+let xmin=-3, xmax=3, ymin=-2.25, ymax=2.25;
+let selectedPoint = null;
+let particles = [];
+let scalarMin=-1, scalarMax=1;
+let active = fields[0];
+let viewMode = '2d';
+
+let camera = { yaw: -0.65, pitch: 0.82, zoom: 1.0 };
+let dragging = false;
+let dragMoved = false;
+let lastMouse = {x:0,y:0};
+
+function currentField(){ return fields.find(f=>f.id===ui.fieldSelect.value) || fields[0]; }
+
+function resize(){
+  DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const box = canvas.getBoundingClientRect();
+  W = Math.floor(box.width * DPR);
+  H = Math.floor(box.height * DPR);
+  canvas.width = W;
+  canvas.height = H;
+  const ratio = W/H;
+  const yHalf = 2.25;
+  const xHalf = yHalf*ratio;
+  xmin=-xHalf; xmax=xHalf; ymin=-yHalf; ymax=yHalf;
+  computeScalarRange();
+}
+window.addEventListener('resize', resize);
+
+function worldToScreen(x,y){
+  return [
+    (x-xmin)/(xmax-xmin)*W,
+    H - (y-ymin)/(ymax-ymin)*H
+  ];
+}
+function screenToWorld(px,py){
+  return [
+    xmin + px/W*(xmax-xmin),
+    ymin + (H-py)/H*(ymax-ymin)
+  ];
+}
+function fmt(a){ return Number.isFinite(a) ? (Math.abs(a)<1e-9 ? '0.000' : a.toFixed(3)) : 'NaN'; }
+function mag(v){ return Math.hypot(v[0],v[1]); }
+
+function numericalDiv(f,x,y){
+  const h=1e-4;
+  const Fx1=f.vector(x+h,y)[0], Fx0=f.vector(x-h,y)[0];
+  const Gy1=f.vector(x,y+h)[1], Gy0=f.vector(x,y-h)[1];
+  return (Fx1-Fx0)/(2*h)+(Gy1-Gy0)/(2*h);
+}
+function numericalCurl(f,x,y){
+  const h=1e-4;
+  const Qx1=f.vector(x+h,y)[1], Qx0=f.vector(x-h,y)[1];
+  const Py1=f.vector(x,y+h)[0], Py0=f.vector(x,y-h)[0];
+  return (Qx1-Qx0)/(2*h)-(Py1-Py0)/(2*h);
+}
+
+function computeScalarRange(){
+  active = currentField();
+  let min=Infinity,max=-Infinity;
+  const n=90;
+  for(let i=0;i<n;i++){
+    for(let j=0;j<n;j++){
+      const x=xmin+(i+0.5)/n*(xmax-xmin);
+      const y=ymin+(j+0.5)/n*(ymax-ymin);
+      const s=active.scalar(x,y);
+      if(s<min)min=s;
+      if(s>max)max=s;
+    }
+  }
+  if(Math.abs(max-min)<1e-6){ max=min+1; }
+  scalarMin=min; scalarMax=max;
+}
+
+function normScalar(s){
+  return (s-scalarMin)/(scalarMax-scalarMin);
+}
+
+function colorMap(t){
+  t=Math.max(0,Math.min(1,t));
+  const stops=[
+    [0.00, 30, 64, 175],
+    [0.25, 14, 165, 233],
+    [0.50, 52, 211, 153],
+    [0.75, 250, 204, 21],
+    [1.00, 244, 63, 94]
+  ];
+  for(let i=0;i<stops.length-1;i++){
+    const a=stops[i], b=stops[i+1];
+    if(t>=a[0] && t<=b[0]){
+      const u=(t-a[0])/(b[0]-a[0]);
+      const r=Math.round(a[1]*(1-u)+b[1]*u);
+      const g=Math.round(a[2]*(1-u)+b[2]*u);
+      const bl=Math.round(a[3]*(1-u)+b[3]*u);
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  return 'rgb(244,63,94)';
+}
+
+function drawScalar2D(){
+  const step = Math.max(3, Math.floor(5*DPR));
+  for(let py=0; py<H; py+=step){
+    for(let px=0; px<W; px+=step){
+      const [x,y]=screenToWorld(px+step/2,py+step/2);
+      const t=normScalar(active.scalar(x,y));
+      ctx.fillStyle=colorMap(t);
+      ctx.fillRect(px,py,step+1,step+1);
+    }
+  }
+  ctx.fillStyle='rgba(2,6,23,.22)';
+  ctx.fillRect(0,0,W,H);
+}
+
+function drawContours2D(){
+  const nx=130, ny=95;
+  const levels=15;
+  let vals = new Array(nx*ny);
+  for(let j=0;j<ny;j++){
+    for(let i=0;i<nx;i++){
+      const x=xmin+i/(nx-1)*(xmax-xmin);
+      const y=ymin+j/(ny-1)*(ymax-ymin);
+      vals[j*nx+i]=active.scalar(x,y);
+    }
+  }
+  ctx.save();
+  ctx.lineWidth=1.05*DPR;
+  ctx.strokeStyle='rgba(255,255,255,.52)';
+  for(let l=1;l<levels;l++){
+    const level=scalarMin+l/levels*(scalarMax-scalarMin);
+    ctx.beginPath();
+    for(let j=0;j<ny-1;j++){
+      for(let i=0;i<nx-1;i++){
+        const v0=vals[j*nx+i], v1=vals[j*nx+i+1], v2=vals[(j+1)*nx+i+1], v3=vals[(j+1)*nx+i];
+        const x0=xmin+i/(nx-1)*(xmax-xmin), x1=xmin+(i+1)/(nx-1)*(xmax-xmin);
+        const y0=ymin+j/(ny-1)*(ymax-ymin), y1=ymin+(j+1)/(ny-1)*(ymax-ymin);
+        let pts=[];
+        function interp(a,b,p0,p1){
+          const t=(level-a)/(b-a);
+          return [p0[0]*(1-t)+p1[0]*t, p0[1]*(1-t)+p1[1]*t];
+        }
+        if((v0-level)*(v1-level)<0) pts.push(interp(v0,v1,[x0,y0],[x1,y0]));
+        if((v1-level)*(v2-level)<0) pts.push(interp(v1,v2,[x1,y0],[x1,y1]));
+        if((v2-level)*(v3-level)<0) pts.push(interp(v2,v3,[x1,y1],[x0,y1]));
+        if((v3-level)*(v0-level)<0) pts.push(interp(v3,v0,[x0,y1],[x0,y0]));
+        if(pts.length===2){
+          const a=worldToScreen(pts[0][0],pts[0][1]);
+          const b=worldToScreen(pts[1][0],pts[1][1]);
+          ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
+        } else if(pts.length===4){
+          const a=worldToScreen(pts[0][0],pts[0][1]);
+          const b=worldToScreen(pts[1][0],pts[1][1]);
+          const c=worldToScreen(pts[2][0],pts[2][1]);
+          const d=worldToScreen(pts[3][0],pts[3][1]);
+          ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]);
+          ctx.moveTo(c[0],c[1]); ctx.lineTo(d[0],d[1]);
+        }
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawArrow2D(x,y,u,v,color='rgba(191,219,254,.95)', scale=1){
+  const [px,py]=worldToScreen(x,y);
+  const len=mag([u,v]);
+  if(len<1e-7) return;
+  const maxPix=34*DPR*scale;
+  const L=Math.min(maxPix, (8+20*Math.tanh(len))*DPR*scale);
+  const dx=u/len*L, dy=-v/len*L;
+  const ex=px+dx, ey=py+dy;
+  ctx.strokeStyle=color;
+  ctx.fillStyle=color;
+  ctx.lineWidth=1.5*DPR;
+  ctx.beginPath();
+  ctx.moveTo(px-dx*0.35, py-dy*0.35);
+  ctx.lineTo(ex,ey);
+  ctx.stroke();
+  const ang=Math.atan2(dy,dx);
+  const ah=6*DPR*scale;
+  ctx.beginPath();
+  ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-ah*Math.cos(ang-Math.PI/6), ey-ah*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(ex-ah*Math.cos(ang+Math.PI/6), ey-ah*Math.sin(ang+Math.PI/6));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawVectors2D(){
+  const cols=19, rows=14;
+  ctx.save();
+  for(let j=0;j<rows;j++){
+    for(let i=0;i<cols;i++){
+      const x=xmin+(i+0.5)/cols*(xmax-xmin);
+      const y=ymin+(j+0.5)/rows*(ymax-ymin);
+      const [u,v]=active.vector(x,y);
+      drawArrow2D(x,y,u,v,'rgba(186,230,253,.86)',0.82);
+    }
+  }
+  ctx.restore();
+}
+
+function randomParticle(){
+  return {
+    x:xmin+Math.random()*(xmax-xmin),
+    y:ymin+Math.random()*(ymax-ymin),
+    age:Math.random()*100
+  };
+}
+function resetParticles(){
+  particles=[];
+  for(let i=0;i<900;i++) particles.push(randomParticle());
+}
+function advectParticles(dt){
+  const sp=parseFloat(ui.speed.value);
+  for(const p of particles){
+    const [u,v]=active.vector(p.x,p.y);
+    const m=Math.hypot(u,v);
+    const factor=0.35*sp/(1+0.12*m);
+    p.x += u*dt*factor;
+    p.y += v*dt*factor;
+    p.age += dt;
+    if(p.x<xmin || p.x>xmax || p.y<ymin || p.y>ymax || p.age>15){
+      Object.assign(p,randomParticle());
+      p.age=0;
+    }
+  }
+}
+function drawParticles2D(){
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  for(const p of particles){
+    const [px,py]=worldToScreen(p.x,p.y);
+    const alpha=Math.max(0.18,1-p.age/15);
+    ctx.fillStyle=`rgba(147,197,253,${0.35*alpha})`;
+    ctx.beginPath();
+    ctx.arc(px,py,1.1*DPR,0,TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawAxes2D(){
+  const [ox,oy]=worldToScreen(0,0);
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,.18)';
+  ctx.lineWidth=1*DPR;
+  ctx.beginPath();
+  ctx.moveTo(0,oy); ctx.lineTo(W,oy);
+  ctx.moveTo(ox,0); ctx.lineTo(ox,H);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSelected2D(){
+  if(!selectedPoint) return;
+  const {x,y}=selectedPoint;
+  const [px,py]=worldToScreen(x,y);
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,.95)';
+  ctx.fillStyle='rgba(255,255,255,.95)';
+  ctx.lineWidth=2*DPR;
+  ctx.beginPath();
+  ctx.arc(px,py,6*DPR,0,TAU);
+  ctx.stroke();
+  ctx.fillStyle='rgba(2,6,23,.8)';
+  ctx.beginPath();
+  ctx.arc(px,py,3*DPR,0,TAU);
+  ctx.fill();
+
+  const g=active.grad(x,y);
+  drawArrow2D(x,y,g[0],g[1],'rgba(52,211,153,.98)',1.4);
+
+  const F=active.vector(x,y);
+  drawArrow2D(x,y,F[0],F[1],'rgba(96,165,250,.98)',1.15);
+
+  ctx.font=`${13*DPR}px ui-monospace, monospace`;
+  ctx.fillStyle='rgba(255,255,255,.96)';
+  ctx.fillText('P', px+9*DPR, py-9*DPR);
+  ctx.restore();
+}
+
+/* ---------------- 3D view ---------------- */
+
+function surfaceZ(x,y){
+  const t = normScalar(active.scalar(x,y));
+  return (t - 0.5) * 2.2; // t 越大，f 越高，3D 曲面高度越高
+}
+
+function rotate3D(x,y,z){
+  const cy=Math.cos(camera.yaw), sy=Math.sin(camera.yaw);
+  const cp=Math.cos(camera.pitch), sp=Math.sin(camera.pitch);
+
+  // 先绕 z 轴旋转，再绕屏幕 x 轴俯仰。
+  // 约定：世界坐标 z 越大，屏幕上应越“高”，因此 ry 必须随 z 增大而增大。
+  const x1 = cy*x + sy*y;
+  const y1 = -sy*x + cy*y;
+  const z1 = z;
+
+  const y2 = cp*y1 + sp*z1;
+  const z2 = -sp*y1 + cp*z1;
+  return [x1,y2,z2];
+}
+function project3D(x,y,z){
+  const [rx,ry,rz]=rotate3D(x,y,z);
+  const scale = Math.min(W,H) * 0.145 * camera.zoom;
+  return {
+    x: W/2 + rx*scale,
+    y: H/2 - ry*scale + 20*DPR,
+    depth: rz
+  };
+}
+function cameraToWorld(rx,ry,rz){
+  // rotate3D 的逆变换。用于把屏幕射线从相机坐标还原到世界坐标。
+  const cy=Math.cos(camera.yaw), sy=Math.sin(camera.yaw);
+  const cp=Math.cos(camera.pitch), sp=Math.sin(camera.pitch);
+
+  // rotate3D 中俯仰矩阵的逆变换。
+  const y1 = cp*ry - sp*rz;
+  const z1 = sp*ry + cp*rz;
+
+  const x = cy*rx - sy*y1;
+  const y = sy*rx + cy*y1;
+  const z = z1;
+  return [x,y,z];
+}
+function pickSurfacePoint3D(px,py){
+  // 正交投影下：屏幕上一点对应相机坐标中的一条直线 (rx, ry, rz)。
+  // 这里求这条视线与曲面 z = surfaceZ(x,y) 的交点。
+  const scale = Math.min(W,H) * 0.145 * camera.zoom;
+  const rx = (px - W/2) / scale;
+  const ry = (H/2 + 20*DPR - py) / scale;
+
+  function rayWorld(t){
+    return cameraToWorld(rx,ry,t);
+  }
+  function err(t){
+    const [x,y,z] = rayWorld(t);
+    return z - surfaceZ(x,y);
+  }
+  function inBounds(x,y){
+    return x>=xmin && x<=xmax && y>=ymin && y<=ymax;
+  }
+
+  const tMin=-10, tMax=10, N=260;
+  let candidates=[];
+  let tPrev=tMin, ePrev=err(tPrev);
+
+  for(let i=1;i<=N;i++){
+    const t=tMin+(tMax-tMin)*i/N;
+    const e=err(t);
+
+    if(Number.isFinite(ePrev) && Number.isFinite(e)){
+      if(e===0 || ePrev===0 || ePrev*e<0){
+        let a=tPrev, b=t, ea=ePrev, eb=e;
+        for(let k=0;k<34;k++){
+          const m=(a+b)/2;
+          const em=err(m);
+          if(ea*em<=0){ b=m; eb=em; }
+          else { a=m; ea=em; }
+        }
+        const tc=(a+b)/2;
+        const [x,y,z]=rayWorld(tc);
+        if(inBounds(x,y)){
+          candidates.push({x,y,t:tc});
+        }
+      }
+    }
+    tPrev=t; ePrev=e;
+  }
+
+  if(candidates.length>0){
+    // depth/t 较大者更靠近观察者；选可见的最前交点。
+    candidates.sort((a,b)=>b.t-a.t);
+    return {x:candidates[0].x, y:candidates[0].y};
+  }
+
+  // 兜底：如果点在曲面投影边缘或数值求交失败，选投影距离最近的曲面采样点。
+  let best=null;
+  const coarse=92;
+  for(let j=0;j<coarse;j++){
+    for(let i=0;i<coarse;i++){
+      const x=xmin+i/(coarse-1)*(xmax-xmin);
+      const y=ymin+j/(coarse-1)*(ymax-ymin);
+      const q=project3D(x,y,surfaceZ(x,y)+0.02);
+      const d2=(q.x-px)*(q.x-px)+(q.y-py)*(q.y-py);
+      if(!best || d2<best.d2) best={x,y,d2};
+    }
+  }
+  return best ? {x:best.x,y:best.y} : screenToWorld(px,py);
+}
+function drawLine3D(a,b,color,width=1){
+  ctx.strokeStyle=color;
+  ctx.lineWidth=width*DPR;
+  ctx.beginPath();
+  ctx.moveTo(a.x,a.y);
+  ctx.lineTo(b.x,b.y);
+  ctx.stroke();
+}
+
+function drawGrid3D(){
+  const gridN=46;
+  const x0=xmin, x1=xmax, y0=ymin, y1=ymax;
+  let cells=[];
+  for(let j=0;j<gridN-1;j++){
+    for(let i=0;i<gridN-1;i++){
+      const xa=x0+i/(gridN-1)*(x1-x0);
+      const xb=x0+(i+1)/(gridN-1)*(x1-x0);
+      const ya=y0+j/(gridN-1)*(y1-y0);
+      const yb=y0+(j+1)/(gridN-1)*(y1-y0);
+      const za=surfaceZ(xa,ya), zb=surfaceZ(xb,ya), zc=surfaceZ(xb,yb), zd=surfaceZ(xa,yb);
+      const p1=project3D(xa,ya,za), p2=project3D(xb,ya,zb), p3=project3D(xb,yb,zc), p4=project3D(xa,yb,zd);
+      const sm=(active.scalar((xa+xb)/2,(ya+yb)/2));
+      cells.push({
+        depth:(p1.depth+p2.depth+p3.depth+p4.depth)/4,
+        pts:[p1,p2,p3,p4],
+        color:colorMap(normScalar(sm))
+      });
+    }
+  }
+  cells.sort((a,b)=>a.depth-b.depth);
+  ctx.save();
+  for(const c of cells){
+    ctx.fillStyle = ui.showScalar.checked ? c.color : 'rgba(30,41,59,.8)';
+    ctx.globalAlpha = 0.88;
+    ctx.beginPath();
+    ctx.moveTo(c.pts[0].x,c.pts[0].y);
+    for(let k=1;k<c.pts.length;k++) ctx.lineTo(c.pts[k].x,c.pts[k].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  if(ui.showContours.checked){
+    ctx.save();
+    ctx.strokeStyle='rgba(255,255,255,.18)';
+    ctx.lineWidth=0.8*DPR;
+    const step=4;
+    for(let j=0;j<gridN;j+=step){
+      ctx.beginPath();
+      for(let i=0;i<gridN;i++){
+        const x=x0+i/(gridN-1)*(x1-x0);
+        const y=y0+j/(gridN-1)*(y1-y0);
+        const p=project3D(x,y,surfaceZ(x,y)+0.006);
+        if(i===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    }
+    for(let i=0;i<gridN;i+=step){
+      ctx.beginPath();
+      for(let j=0;j<gridN;j++){
+        const x=x0+i/(gridN-1)*(x1-x0);
+        const y=y0+j/(gridN-1)*(y1-y0);
+        const p=project3D(x,y,surfaceZ(x,y)+0.006);
+        if(j===0)ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function drawAxes3D(){
+  ctx.save();
+  const o=project3D(0,0,0);
+  const x=project3D(1.4,0,0);
+  const y=project3D(0,1.4,0);
+  const z=project3D(0,0,1.4);
+  drawLine3D(o,x,'rgba(248,113,113,.75)',1.5);
+  drawLine3D(o,y,'rgba(52,211,153,.75)',1.5);
+  drawLine3D(o,z,'rgba(96,165,250,.75)',1.5);
+  ctx.font=`${12*DPR}px ui-monospace, monospace`;
+  ctx.fillStyle='rgba(248,113,113,.95)'; ctx.fillText('x',x.x+4*DPR,x.y);
+  ctx.fillStyle='rgba(52,211,153,.95)'; ctx.fillText('y',y.x+4*DPR,y.y);
+  ctx.fillStyle='rgba(96,165,250,.95)'; ctx.fillText('f',z.x+4*DPR,z.y);
+  ctx.restore();
+}
+
+function drawArrow3D(x,y,u,v,color='rgba(186,230,253,.92)',scale=1){
+  const baseZ = surfaceZ(x,y)+0.055;
+  const len=Math.hypot(u,v);
+  if(len<1e-7) return;
+  const step=0.32*scale*Math.tanh(len);
+  const x2=x+u/len*step;
+  const y2=y+v/len*step;
+  const p1=project3D(x,y,baseZ);
+  const p2=project3D(x2,y2,surfaceZ(x2,y2)+0.055);
+  ctx.strokeStyle=color;
+  ctx.fillStyle=color;
+  ctx.lineWidth=1.35*DPR;
+  ctx.beginPath();
+  ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+  const ang=Math.atan2(p2.y-p1.y,p2.x-p1.x);
+  const ah=5.5*DPR*scale;
+  ctx.beginPath();
+  ctx.moveTo(p2.x,p2.y);
+  ctx.lineTo(p2.x-ah*Math.cos(ang-Math.PI/6), p2.y-ah*Math.sin(ang-Math.PI/6));
+  ctx.lineTo(p2.x-ah*Math.cos(ang+Math.PI/6), p2.y-ah*Math.sin(ang+Math.PI/6));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawVectors3D(){
+  const cols=15, rows=11;
+  for(let j=0;j<rows;j++){
+    for(let i=0;i<cols;i++){
+      const x=xmin+(i+0.5)/cols*(xmax-xmin);
+      const y=ymin+(j+0.5)/rows*(ymax-ymin);
+      const [u,v]=active.vector(x,y);
+      drawArrow3D(x,y,u,v,'rgba(186,230,253,.82)',0.9);
+    }
+  }
+}
+
+function drawParticles3D(){
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  for(const p of particles){
+    const z=surfaceZ(p.x,p.y)+0.075;
+    const q=project3D(p.x,p.y,z);
+    const alpha=Math.max(0.15,1-p.age/15);
+    ctx.fillStyle=`rgba(147,197,253,${0.30*alpha})`;
+    ctx.beginPath();
+    ctx.arc(q.x,q.y,1.15*DPR,0,TAU);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawSelected3D(){
+  if(!selectedPoint) return;
+  const {x,y}=selectedPoint;
+  const z=surfaceZ(x,y)+0.08;
+  const p=project3D(x,y,z);
+  ctx.save();
+  ctx.strokeStyle='rgba(255,255,255,.98)';
+  ctx.fillStyle='rgba(2,6,23,.9)';
+  ctx.lineWidth=2*DPR;
+  ctx.beginPath(); ctx.arc(p.x,p.y,7*DPR,0,TAU); ctx.stroke(); ctx.fill();
+
+  const down=project3D(x,y,-1.35);
+  drawLine3D(p,down,'rgba(255,255,255,.20)',1);
+
+  const g=active.grad(x,y);
+  drawArrow3D(x,y,g[0],g[1],'rgba(52,211,153,.98)',1.35);
+  const F=active.vector(x,y);
+  drawArrow3D(x,y,F[0],F[1],'rgba(96,165,250,.98)',1.1);
+
+  ctx.font=`${13*DPR}px ui-monospace, monospace`;
+  ctx.fillStyle='rgba(255,255,255,.96)';
+  ctx.fillText('P', p.x+9*DPR, p.y-9*DPR);
+  ctx.restore();
+}
+
+function draw3D(){
+  ctx.fillStyle='#020617';
+  ctx.fillRect(0,0,W,H);
+  drawAxes3D();
+  drawGrid3D();
+  if(ui.showParticles.checked) drawParticles3D();
+  if(ui.showVectors.checked) drawVectors3D();
+  drawSelected3D();
+}
+
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.033,(now-last)/1000);
+  last=now;
+  if(ui.showParticles.checked) advectParticles(dt);
+
+  if(viewMode==='2d'){
+    ctx.clearRect(0,0,W,H);
+    if(ui.showScalar.checked) drawScalar2D();
+    else { ctx.fillStyle='#020617'; ctx.fillRect(0,0,W,H); }
+    drawAxes2D();
+    if(ui.showContours.checked) drawContours2D();
+    if(ui.showParticles.checked) drawParticles2D();
+    if(ui.showVectors.checked) drawVectors2D();
+    drawSelected2D();
+  } else {
+    draw3D();
+  }
+  requestAnimationFrame(frame);
+}
+
+function updateFieldInfo(keepPoint=false){
+  active=currentField();
+  computeScalarRange();
+  ui.fieldName.textContent=active.name;
+  ui.fieldTags.innerHTML=active.tags.map(t=>`<span class="pill">${t}</span>`).join('');
+  ui.fieldDesc.textContent=active.desc;
+  ui.fieldFormula.innerHTML=active.formula;
+  if(window.MathJax && MathJax.typesetPromise){ MathJax.typesetPromise([ui.fieldFormula]); }
+  if(!keepPoint) selectedPoint=null;
+  updatePointPanel(selectedPoint);
+  resetParticles();
+}
+
+function updatePointPanel(p){
+  if(!p){
+    ui.pos.textContent='尚未点击';
+    ui.scalarVal.textContent='—';
+    ui.gradVal.textContent='—';
+    ui.vecVal.textContent='—';
+    ui.divVal.textContent='—';
+    ui.curlVal.textContent='—';
+    return;
+  }
+  const x=p.x,y=p.y;
+  const s=active.scalar(x,y);
+  const g=active.grad(x,y);
+  const F=active.vector(x,y);
+  const div = active.div ? active.div(x,y) : numericalDiv(active,x,y);
+  const curl = active.curl ? active.curl(x,y) : numericalCurl(active,x,y);
+
+  ui.pos.textContent=`(${fmt(x)}, ${fmt(y)})`;
+  ui.scalarVal.textContent=fmt(s);
+  ui.gradVal.textContent=`(${fmt(g[0])}, ${fmt(g[1])}), |∇f|=${fmt(mag(g))}`;
+  ui.vecVal.textContent=`(${fmt(F[0])}, ${fmt(F[1])}), |F|=${fmt(mag(F))}`;
+  ui.divVal.textContent=`${fmt(div)}  ${div>0.05?'源 / 净流出':div<-0.05?'汇 / 净流入':'近似无源汇'}`;
+  ui.curlVal.textContent=`${fmt(curl)}  ${curl>0.05?'逆时针趋势':curl<-0.05?'顺时针趋势':'近似无局部旋转'}`;
+}
+
+function setView(mode){
+  viewMode=mode;
+  ui.view2d.classList.toggle('active', mode==='2d');
+  ui.view3d.classList.toggle('active', mode==='3d');
+  ui.viewHint.textContent = mode==='2d' ? '2D：点击取点；暖色高、冷色低' : '3D：拖拽旋转，向上拖抬高仰角，左右拖按画面直觉旋转；点击曲面取点；暖色高、冷色低';
+  updatePointPanel(selectedPoint);
+}
+
+function resetCamera(){
+  camera.yaw=-0.65;
+  camera.pitch=0.82;
+  camera.zoom=1.0;
+}
+
+function handleCanvasClick(clientX,clientY){
+  const rect=canvas.getBoundingClientRect();
+  const px=(clientX-rect.left)*DPR;
+  const py=(clientY-rect.top)*DPR;
+
+  if(viewMode==='3d'){
+    selectedPoint = pickSurfacePoint3D(px,py);
+  } else {
+    const [x,y]=screenToWorld(px,py);
+    selectedPoint={x,y};
+  }
+  updatePointPanel(selectedPoint);
+}
+
+canvas.addEventListener('pointerdown', (ev)=>{
+  canvas.setPointerCapture(ev.pointerId);
+  dragging = viewMode==='3d';
+  dragMoved = false;
+  lastMouse.x=ev.clientX; lastMouse.y=ev.clientY;
+});
+
+canvas.addEventListener('pointermove', (ev)=>{
+  if(!dragging) return;
+  const dx=ev.clientX-lastMouse.x, dy=ev.clientY-lastMouse.y;
+  if(Math.abs(dx)+Math.abs(dy)>3) dragMoved=true;
+  lastMouse.x=ev.clientX; lastMouse.y=ev.clientY;
+  camera.yaw -= dx*0.008; // 向右拖 dx>0，视角按直觉向右绕转
+  camera.pitch -= dy*0.006; // 向上拖 dy<0，pitch 增大，视角仰角抬起
+  camera.pitch = Math.max(-1.15, Math.min(1.25, camera.pitch));
+});
+
+canvas.addEventListener('pointerup', (ev)=>{
+  if(viewMode==='2d' || !dragMoved){
+    handleCanvasClick(ev.clientX, ev.clientY);
+  }
+  dragging=false;
+});
+
+canvas.addEventListener('wheel', (ev)=>{
+  if(viewMode!=='3d') return;
+  ev.preventDefault();
+  const factor = Math.exp(-ev.deltaY*0.001);
+  camera.zoom = Math.max(0.65, Math.min(1.75, camera.zoom*factor));
+}, {passive:false});
+
+ui.fieldSelect.addEventListener('change',()=>updateFieldInfo(false));
+ui.view2d.addEventListener('click',()=>setView('2d'));
+ui.view3d.addEventListener('click',()=>setView('3d'));
+ui.resetBtn.addEventListener('click',resetParticles);
+ui.resetCamBtn.addEventListener('click',resetCamera);
+
+ui.fieldSelect.value='hill';
+resize();
+updateFieldInfo(false);
+resetCamera();
+requestAnimationFrame(frame);
+if(window.MathJax && MathJax.startup && MathJax.startup.promise){
+  MathJax.startup.promise.then(()=>MathJax.typesetPromise([ui.fieldFormula]));
+}
+</script>
+</body>
+</html>
