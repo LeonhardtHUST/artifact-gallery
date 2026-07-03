@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -30,23 +30,29 @@ function main() {
   console.log("[post-build] Checking gallery manifest...");
   run(process.execPath, [checkScriptPath]);
 
-  const prompt = readFileSync(promptPath, "utf8");
+  const noCodexMarker = join(rootDir, ".no-codex");
 
-  console.log("[post-build] Running Codex gallery maintenance prompt...");
-  run(
-    "codex",
-    [
-      "--sandbox",
-      "danger-full-access",
-      "--ask-for-approval",
-      "never",
-      "exec",
-      "-C",
-      rootDir,
-      "-"
-    ],
-    { input: prompt, shell: process.platform === "win32" }
-  );
+  if (existsSync(noCodexMarker)) {
+    console.log("[post-build] .no-codex found, skipping Codex step");
+  } else {
+    const prompt = readFileSync(promptPath, "utf8");
+
+    console.log("[post-build] Running Codex gallery maintenance prompt...");
+    run(
+      "codex",
+      [
+        "--sandbox",
+        "danger-full-access",
+        "--ask-for-approval",
+        "never",
+        "exec",
+        "-C",
+        rootDir,
+        "-"
+      ],
+      { input: prompt, shell: process.platform === "win32" }
+    );
+  }
 
   console.log("[post-build] Linking gallery assets into docs...");
   run(process.execPath, [linkDocsAssetsScriptPath]);
