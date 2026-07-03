@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 8080",
-    "build": "vite build",
+    "build": "vite build && node utils/post-build-maintain.js",
     "check:gallery": "node utils/check-gallery.js",
     "preview": "vite preview --host 127.0.0.1 --port 4173"
   },
