@@ -7,6 +7,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "..");
 const promptPath = join(rootDir, "prompts", "maintain-gallery.md");
 const checkScriptPath = join(rootDir, "utils", "check-gallery.js");
+const linkDistAssetsScriptPath = join(rootDir, "utils", "link-dist-assets.js");
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -46,6 +47,9 @@ function main() {
     ],
     { input: prompt, shell: process.platform === "win32" }
   );
+
+  console.log("[post-build] Linking gallery assets into dist...");
+  run(process.execPath, [linkDistAssetsScriptPath]);
 }
 
 main();
