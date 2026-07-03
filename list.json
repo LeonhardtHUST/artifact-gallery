@@ -10,7 +10,7 @@
       "en": "Explore scalar and vector fields with contours, particles, arrows, and point sampling for gradient, divergence, and curl."
     },
     "imageUrl": "images/梯度_散度_旋度交互可视化实验台_v7.png",
-    "url": "pages/vector_calculus_interactive_v7_drag_fixed.html",
+    "url": "content/vector_calculus_interactive_v7_drag_fixed.html",
     "generatedAt": "2026-07-04"
   },
   {
@@ -24,7 +24,7 @@
       "en": "Visualize a 3D scalar field through orthogonal slices, isosurface point clouds, gradient arrows, and adjustable sampling controls."
     },
     "imageUrl": "images/三维标量场_f_x_y_z_可调分辨率与点云密度实验台.png",
-    "url": "pages/scalar_field_3d_visualizer_density_v2.html",
+    "url": "content/scalar_field_3d_visualizer_density_v2.html",
     "generatedAt": "2026-07-04"
   }
 ]
