@@ -13,7 +13,7 @@ function run(command, args, options = {}) {
     cwd: rootDir,
     stdio: options.input ? ["pipe", "inherit", "inherit"] : "inherit",
     input: options.input,
-    shell: false
+    shell: options.shell ?? false
   });
 
   if (result.error) {
@@ -30,22 +30,21 @@ function main() {
   run(process.execPath, [checkScriptPath]);
 
   const prompt = readFileSync(promptPath, "utf8");
-  const codexCommand = process.platform === "win32" ? "codex.cmd" : "codex";
 
   console.log("[post-build] Running Codex gallery maintenance prompt...");
   run(
-    codexCommand,
+    "codex",
     [
-      "exec",
-      "-C",
-      rootDir,
       "--sandbox",
       "danger-full-access",
       "--ask-for-approval",
       "never",
+      "exec",
+      "-C",
+      rootDir,
       "-"
     ],
-    { input: prompt }
+    { input: prompt, shell: process.platform === "win32" }
   );
 }
 

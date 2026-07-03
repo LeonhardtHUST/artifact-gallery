@@ -3,3 +3,6 @@ set -eu
 
 echo "[pre-commit] Running vp build..."
 vp build
+
+echo "[pre-commit] Running gallery post-build maintenance..."
+node utils/post-build-maintain.js
